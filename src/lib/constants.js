@@ -5,11 +5,9 @@
 export const CATS = {
   Pollo:       { label: 'Pollo',       hue: 232 },
   Res:         { label: 'Res',         hue: 250 },
-  Pasta:       { label: 'Pasta',       hue: 70 },
-  Sopa:        { label: 'Sopa',        hue: 200 },
+  Cerdo:       { label: 'Cerdo',       hue: 18  },
+  Pasta:       { label: 'Pasta',       hue: 70  },
   Pescado:     { label: 'Pescado',     hue: 215 },
-  Vegetariano: { label: 'Vegetariano', hue: 150 },
-  Antojito:    { label: 'Antojito',    hue: 35 },
   Restaurante: { label: 'Restaurante', hue: 330 },
 };
 
