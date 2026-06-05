@@ -1,0 +1,83 @@
+:root {
+  --cream:        oklch(0.975 0.010 85);
+  --cream-2:      oklch(0.945 0.014 80);
+  --surface:      oklch(0.995 0.005 85);
+  --surface-blur: oklch(0.985 0.008 85 / 0.82);
+
+  --ink:    oklch(0.30 0.035 255);
+  --ink-70: oklch(0.44 0.030 255);
+  --ink-60: oklch(0.52 0.025 255);
+  --ink-40: oklch(0.64 0.020 255);
+  --ink-30: oklch(0.74 0.015 255);
+
+  --blue:        oklch(0.55 0.11 250);
+  --blue-deep:   oklch(0.42 0.10 255);
+  --blue-soft:   oklch(0.94 0.04 245);
+  --blue-shadow: oklch(0.55 0.11 250 / 0.55);
+
+  --clay:        oklch(0.64 0.13 40);
+  --clay-soft:   oklch(0.94 0.05 50);
+  --clay-deep:   oklch(0.52 0.12 38);
+
+  --line:        oklch(0.90 0.012 80);
+  --line-soft:   oklch(0.935 0.010 80);
+
+  --serif: 'Bitter', Georgia, 'Times New Roman', serif;
+  --sans:  'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  /* fondo neutro fuera de la "columna teléfono" cuando se ve en computadora */
+  background: oklch(0.93 0.008 80);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  color: var(--ink);
+}
+button { font-family: var(--sans); }
+input { font-family: var(--sans); }
+input::placeholder { color: var(--ink-30); }
+
+/* scrollbars discretos */
+.app-scroll::-webkit-scrollbar { width: 0; }
+.app-scroll { scrollbar-width: none; }
+div::-webkit-scrollbar { height: 0; width: 0; }
+
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp  { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes toastUp  { from { transform: translate(-50%, 14px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+/* ── Carcasa responsive ───────────────────────────────────────────────
+   En el teléfono la app llena toda la pantalla. En pantallas anchas
+   (computadora) se centra en una columna tipo teléfono con sombra. */
+#root {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+.app-shell {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  min-height: 100dvh;
+  background: var(--cream);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 480px) {
+  body { padding: 0; }
+  #root { align-items: center; }
+  .app-shell {
+    height: min(880px, 100dvh);
+    min-height: 0;
+    border-radius: 0;
+    box-shadow: 0 24px 70px -30px rgba(28, 40, 70, 0.45);
+  }
+}
+@media (min-width: 480px) and (min-height: 920px) {
+  .app-shell { border-radius: 28px; }
+}
