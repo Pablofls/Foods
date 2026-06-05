@@ -20,7 +20,7 @@ export default function App() {
   const store = useStore();
   const {
     loading, error, meals, manual, checked, toast, mealById, getPlan,
-    toggleFav, addMeal, deleteMeal, assignMeal, shuffleDay, markEaten,
+    toggleFav, addMeal, updateMealFull, deleteMeal, assignMeal, shuffleDay, markEaten,
     toggleEaten, clearDay, planToday, toggleCheck, addManual, toggleManual, removeManual,
   } = store;
 
@@ -33,6 +33,7 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [addPreset, setAddPreset] = useState('');
   const [detailMeal, setDetailMeal] = useState(null);  // id
+  const [editMeal, setEditMeal] = useState(null);      // objeto comida a editar
 
   const TI = todayIndex();
   const planNow = getPlan(0);
@@ -42,6 +43,12 @@ export default function App() {
     if (pickerFor === 'today') { assignMeal(0, TI, mealId); }
     else if (pickerFor && typeof pickerFor === 'object') { assignMeal(pickerFor.off, pickerFor.index, mealId); }
     setPickerFor(null);
+  };
+
+  // callback unificado para add y edit
+  const handleSaveMeal = (data) => {
+    if (data.id) updateMealFull(data);
+    else addMeal(data);
   };
 
   // datos del día abierto en la hoja
@@ -104,9 +111,15 @@ export default function App() {
         onPick={() => { const d = dayOpen; setDayOpen(null); setPickerFor({ off: d.off, index: d.index }); }}
         onToggleEaten={() => toggleEaten(dayOpen.off, dayOpen.index)}
         onClear={() => { clearDay(dayOpen.off, dayOpen.index); setDayOpen(null); }} />
-      <AddMealSheet open={addOpen} onClose={() => setAddOpen(false)} onSave={addMeal} presetName={addPreset} />
+      <AddMealSheet
+        open={addOpen || !!editMeal}
+        editMeal={editMeal}
+        onClose={() => { setAddOpen(false); setEditMeal(null); }}
+        onSave={handleSaveMeal}
+        presetName={addPreset} />
       <MealDetailSheet mealId={detailMeal} mealById={mealById} onClose={() => setDetailMeal(null)}
-        onToggleFav={toggleFav} onDelete={deleteMeal} onPlanToday={planToday} />
+        onToggleFav={toggleFav} onDelete={deleteMeal} onPlanToday={planToday}
+        onEdit={(meal) => { setDetailMeal(null); setEditMeal(meal); }} />
 
       <Toast msg={toast} />
     </div>

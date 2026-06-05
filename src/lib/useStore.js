@@ -106,6 +106,12 @@ export function useStore() {
     flash('Agregado a tu recetario');
   }, [flash]);
 
+  const updateMealFull = useCallback(async ({ id, name, category, ingredients }) => {
+    setMeals(ms => ms.map(m => m.id === id ? { ...m, name, category, ingredients } : m));
+    await backend.updateMeal(id, { name, category, ingredients }).catch(console.error);
+    flash('Cambios guardados');
+  }, [flash]);
+
   const deleteMeal = useCallback((id) => {
     setMeals(ms => ms.filter(m => m.id !== id));
     setPlansByDay(p => {
@@ -197,7 +203,7 @@ export function useStore() {
   return {
     loading, error, meals, manual, checked, toast,
     mealById, getPlan, reload,
-    toggleFav, addMeal, deleteMeal,
+    toggleFav, addMeal, updateMealFull, deleteMeal,
     assignMeal, shuffleDay, markEaten, toggleEaten, clearDay, planToday,
     toggleCheck, addManual, toggleManual, removeManual,
   };

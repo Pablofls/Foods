@@ -1,8 +1,16 @@
-// DaySheet.jsx — hoja de día del planeador (portado de sheets.jsx).
-import { isOrder } from '../lib/constants';
+// DaySheet.jsx — hoja de día del planeador.
+import { useState, useEffect } from 'react';
+import { isOrder, catColor } from '../lib/constants';
+import { Icon } from '../components/Icon';
 import { Sheet, Btn, CatChip, OrderNote } from '../components/primitives';
 
 export function DaySheet({ open, title, meal, eaten, onClose, onShuffle, onPick, onToggleEaten, onClear }) {
+  const [shuffled, setShuffled] = useState(false);
+
+  useEffect(() => { if (!open) setShuffled(false); }, [open]);
+
+  const handleShuffle = () => { onShuffle(); setShuffled(true); };
+
   if (!open) return null;
   return (
     <Sheet open={open} onClose={onClose} title={title}>
@@ -11,7 +19,16 @@ export function DaySheet({ open, title, meal, eaten, onClose, onShuffle, onPick,
           <CatChip cat={meal.category} />
           <h2 style={{ margin: '10px 0 0', fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 600, color: 'var(--ink)' }}>{meal.name}</h2>
           {isOrder(meal) ? (
-            <div style={{ marginTop: 12 }}><OrderNote style={{ background: 'var(--surface)' }} /></div>
+            <>
+              <div style={{ marginTop: 12 }}><OrderNote style={{ background: 'var(--surface)' }} /></div>
+              {meal.ingredients.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {meal.ingredients.map((ord, i) => (
+                    <span key={i} style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-70)', background: 'var(--surface)', border: '1px solid var(--line-soft)', borderRadius: 999, padding: '4px 10px' }}>{ord}</span>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {meal.ingredients.map((ing, i) => (
@@ -25,13 +42,19 @@ export function DaySheet({ open, title, meal, eaten, onClose, onShuffle, onPick,
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {meal && (
+        {/* Botón confirmar: aparece solo después de barajar */}
+        {shuffled && meal && (
+          <Btn variant="primary" full icon="check" onClick={onClose}>Confirmar</Btn>
+        )}
+
+        {meal && !shuffled && (
           <Btn variant={eaten ? 'soft' : 'primary'} full icon={eaten ? 'close' : 'check'} onClick={onToggleEaten}>
             {eaten ? 'Desmarcar (no lo comimos)' : 'Marcar como comido'}
           </Btn>
         )}
+
         <div style={{ display: 'flex', gap: 9 }}>
-          <Btn variant="soft" icon="shuffle" style={{ flex: 1 }} onClick={onShuffle}>{meal ? 'Otra' : 'Sugerir'}</Btn>
+          <Btn variant="soft" icon="shuffle" style={{ flex: 1 }} onClick={handleShuffle}>{meal ? 'Otra' : 'Sugerir'}</Btn>
           <Btn variant="ghost" icon="comidas" style={{ flex: 1 }} onClick={onPick}>Del recetario</Btn>
         </div>
         {meal && (

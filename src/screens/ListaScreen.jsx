@@ -1,5 +1,6 @@
 // ListaScreen.jsx — lista de compras automática + manual (portado de screens-more.jsx).
 import { useState } from 'react';
+import { isOrder } from '../lib/constants';
 import { Icon } from '../components/Icon';
 import { ScreenHeader, Checkbox } from '../components/primitives';
 
@@ -11,7 +12,7 @@ export function ListaScreen({ plan, mealById, checked, onToggleCheck, manual, on
   plan.forEach((d) => {
     if (d.mealId && !d.eaten) {
       const meal = mealById(d.mealId);
-      if (!meal) return;
+      if (!meal || isOrder(meal)) return; // restaurantes no aportan a la lista de compras
       meal.ingredients.forEach(ing => {
         if (!map.has(ing)) map.set(ing, new Set());
         map.get(ing).add(meal.name);
