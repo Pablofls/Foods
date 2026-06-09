@@ -133,6 +133,18 @@ const localBackend = {
   async deletePlan(day) {
     lsMutate(s => { delete s.plan_entries[day]; });
   },
+  // Marca un día como comido SOLO si seguía sin marcar y sin bloquear.
+  // Devuelve true si este cliente fue quien hizo el cambio (gate anti doble conteo).
+  async autoMarkDay(day) {
+    return lsMutate(s => {
+      const e = s.plan_entries[day];
+      if (e && e.meal_id != null && e.eaten === false && !e.eaten_locked) {
+        e.eaten = true;
+        return true;
+      }
+      return false;
+    });
+  },
   async addManual(text) {
     return lsMutate(s => { const row = { id: ++s._seq, text, done: false }; s.manual_items.push(row); return row; });
   },
@@ -209,6 +221,19 @@ const supaBackend = {
   async deletePlan(day) {
     const { error } = await supabase.from('plan_entries').delete().eq('day', day);
     if (error) throw error;
+  },
+  // UPDATE condicional: solo flipea eaten=false→true si nadie lo hizo antes.
+  // `.select()` devuelve las filas afectadas; vacío = otro cliente ya lo marcó.
+  async autoMarkDay(day) {
+    const { data, error } = await supabase
+      .from('plan_entries')
+      .update({ eaten: true })
+      .eq('day', day)
+      .eq('eaten', false)
+      .eq('eaten_locked', false)
+      .select('day');
+    if (error) throw error;
+    return data.length > 0;
   },
   async addManual(text) {
     const { data, error } = await supabase.from('manual_items').insert({ text }).select().single();

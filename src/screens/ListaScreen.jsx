@@ -79,9 +79,9 @@ export function ListaScreen({ plan, mealById, complementById, checked, onToggleC
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {manual.map((it) => (
             <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--line-soft)', borderRadius: 16, padding: '12px 14px' }}>
-              <button onClick={() => onToggleManual(it.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex' }}><Checkbox on={it.done} /></button>
+              <button onClick={() => onToggleManual(it.id)} aria-label={it.done ? 'Desmarcar' : 'Marcar como comprado'} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex' }}><Checkbox on={it.done} /></button>
               <div style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600, color: it.done ? 'var(--ink-30)' : 'var(--ink)', textDecoration: it.done ? 'line-through' : 'none' }}>{it.text}</div>
-              <button onClick={() => onRemoveManual(it.id)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-30)', padding: 4, display: 'flex' }}><Icon name="trash" size={18} /></button>
+              <button onClick={() => onRemoveManual(it.id)} aria-label="Eliminar" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-30)', padding: 4, display: 'flex' }}><Icon name="trash" size={18} /></button>
             </div>
           ))}
         </div>

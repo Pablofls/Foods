@@ -1,4 +1,5 @@
 // primitives.jsx — primitivas visuales (portadas de ui.jsx / screens-more.jsx).
+import { useEffect } from 'react';
 import { CATS, catColor } from '../lib/constants';
 import { Icon } from './Icon';
 
@@ -67,10 +68,18 @@ export function Btn({ children, onClick, variant = 'primary', icon, full, size =
 
 // ── Hoja inferior (modal) ───────────────────────────────────────────
 export function Sheet({ open, onClose, title, children, maxH = '82%' }) {
+  // Cerrar con la tecla Esc mientras la hoja está abierta (A1).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
-    <div onClick={onClose} style={{
-      position: 'absolute', inset: 0, zIndex: 100,
+    <div onClick={onClose} role="dialog" aria-modal="true" aria-label={title} style={{
+      position: 'fixed', inset: 0, zIndex: 100,
       background: 'rgba(28,32,48,0.34)', backdropFilter: 'blur(2px)',
       display: 'flex', alignItems: 'flex-end',
       animation: 'fadeIn .2s ease',
@@ -88,7 +97,7 @@ export function Sheet({ open, onClose, title, children, maxH = '82%' }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px 10px' }}>
           <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontSize: 21, fontWeight: 600, color: 'var(--ink)' }}>{title}</h3>
-          <button onClick={onClose} style={{ border: 'none', background: 'var(--cream-2)', borderRadius: 999, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--ink-60)' }}>
+          <button onClick={onClose} aria-label="Cerrar" style={{ border: 'none', background: 'var(--cream-2)', borderRadius: 999, width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--ink-60)' }}>
             <Icon name="close" size={18} sw={2.2} />
           </button>
         </div>

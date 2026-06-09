@@ -6,7 +6,8 @@ export function ResumenScreen({ meals, plan, mealById }) {
   const total = meals.length;
   const favs = meals.filter(m => m.favorite).length;
   const planThisWeek = plan.filter(d => d.mealId);
-  const variety = new Set(planThisWeek.map(d => { const mm = mealById(d.mealId); return mm && mm.category; })).size;
+  // Variedad = platillos DISTINTOS planeados esta semana (mide repetición real, no categorías).
+  const variety = new Set(planThisWeek.map(d => d.mealId)).size;
 
   const ranked = [...meals].sort((a, b) => b.timesEaten - a.timesEaten).slice(0, 6);
   const max = Math.max(1, ...ranked.map(m => m.timesEaten));
@@ -30,7 +31,7 @@ export function ResumenScreen({ meals, plan, mealById }) {
       <div style={{ display: 'flex', gap: 10, padding: '0 18px' }}>
         <Tile value={total} label="Platillos" sub="en tu recetario" />
         <Tile value={favs} label="Favoritas" sub="marcadas" />
-        <Tile value={variety} label="Variedad" sub="tipos esta semana" />
+        <Tile value={variety} label="Variedad" sub="platillos esta semana" />
       </div>
 
       <div style={{ margin: '24px 18px 0', background: 'var(--surface)', border: '1px solid var(--line-soft)', borderRadius: 22, padding: '18px 18px 8px' }}>

@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from './supabaseClient';
 
 import { TabBar } from './components/TabBar';
 import { Toast } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { HoyScreen } from './screens/HoyScreen';
 import { SemanaScreen } from './screens/SemanaScreen';
 import { ComidasScreen } from './screens/ComidasScreen';
@@ -117,7 +118,7 @@ export default function App() {
         )}
         {loading ? (
           <p style={{ textAlign: 'center', color: 'var(--ink-40)', fontFamily: 'var(--sans)', padding: '60px 20px' }}>Cargando…</p>
-        ) : screen}
+        ) : <ErrorBoundary>{screen}</ErrorBoundary>}
       </div>
 
       <TabBar active={tab} onChange={(t) => { if (t === 'semana' && tab !== 'semana') setWeekOffset(0); setTab(t); }} />

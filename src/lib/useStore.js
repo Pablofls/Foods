@@ -2,7 +2,7 @@
 // App() del prototipo, persistiendo todo vía backend (Supabase o localStorage).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { backend } from './backend';
-import { weekDates, dayKey, today, daysAgoFrom, pickRandom } from './constants';
+import { weekDates, dayKey, today, daysAgoFrom, pickRandom, shouldAutoMark } from './constants';
 
 // fila DB → objeto de comida usado por la UI
 function normMeal(row) {
@@ -28,7 +28,9 @@ function normComplement(row) {
   };
 }
 
-const EMPTY_DAY = { mealId: null, eaten: false, complementIds: [], eatenLocked: false };
+// Plantilla de día vacío. Congelada para evitar mutaciones accidentales del objeto
+// compartido; `getPlan`/`entryAt` devuelven copias frescas (ver Q1 del review).
+const EMPTY_DAY = Object.freeze({ mealId: null, eaten: false, complementIds: [], eatenLocked: false });
 
 export function useStore() {
   const [meals, setMeals] = useState([]);
@@ -66,42 +68,53 @@ export function useStore() {
       });
 
       // ── Auto-marcado: días ya pasados, con comida y sin marcar/sin bloquear ──
+      // Nota: `day` y `todayK` son ISO 'YYYY-MM-DD'; con ese formato la comparación de
+      // strings equivale a comparación cronológica. No cambiar dayKey() sin revisar esto.
       const todayK = dayKey(today());
-      const autoDays = [];
-      const mealBump = new Map(); // mealId → { count, lastDay }
+      const candidates = [];
       for (const [day, e] of Object.entries(byDay)) {
-        if (day < todayK && e.mealId != null && !e.eaten && !e.eatenLocked) {
-          byDay[day] = { ...e, eaten: true };
-          autoDays.push(day);
-          const b = mealBump.get(e.mealId) || { count: 0, lastDay: null };
-          b.count += 1;
-          if (!b.lastDay || day > b.lastDay) b.lastDay = day;
-          mealBump.set(e.mealId, b);
+        if (shouldAutoMark(day, e, todayK)) {
+          byDay[day] = { ...e, eaten: true };           // optimista para la UI
+          candidates.push({ day, mealId: e.mealId });
         }
       }
 
-      // Aplica el aumento de estadísticas a las comidas auto-marcadas
-      const finalMeals = mealBump.size === 0 ? mealsNorm : mealsNorm.map(m => {
-        const b = mealBump.get(m.id);
-        if (!b) return m;
-        const newLast = (!m.lastEatenOn || b.lastDay > m.lastEatenOn) ? b.lastDay : m.lastEatenOn;
-        return { ...m, timesEaten: m.timesEaten + b.count, lastEatenOn: newLast, daysAgo: daysAgoFrom(newLast) };
-      });
-
-      setMeals(finalMeals);
+      setMeals(mealsNorm);
       setPlansByDay(byDay);
       setManual(data.manual.map(it => ({ id: it.id, text: it.text, done: !!it.done })));
       setChecked(new Set(data.checked));
       setError(null);
 
-      // Persiste el auto-marcado en el backend (optimista; ya está en el estado)
-      for (const day of autoDays) {
-        const e = byDay[day];
-        backend.upsertPlan(day, { meal_id: e.mealId, eaten: true, complement_ids: e.complementIds, eaten_locked: false }).catch(console.error);
-      }
-      for (const [id, b] of mealBump) {
-        const m = finalMeals.find(x => x.id === id);
-        if (m) backend.updateMeal(id, { times_eaten: m.timesEaten, last_eaten_on: m.lastEatenOn }).catch(console.error);
+      // Persistencia segura ante concurrencia (B5): el flip eaten=false→true se hace con
+      // un UPDATE condicional en el backend. Solo el cliente que de verdad lo cambió suma
+      // la estadística, evitando doble conteo si dos dispositivos cargan al mismo tiempo.
+      if (candidates.length > 0) {
+        const confirmed = [];
+        for (const c of candidates) {
+          try { if (await backend.autoMarkDay(c.day)) confirmed.push(c); }
+          catch (err) { console.error(err); }
+        }
+        if (confirmed.length > 0) {
+          const mealBump = new Map(); // mealId → { count, lastDay }
+          for (const c of confirmed) {
+            const b = mealBump.get(c.mealId) || { count: 0, lastDay: null };
+            b.count += 1;
+            if (!b.lastDay || c.day > b.lastDay) b.lastDay = c.day;
+            mealBump.set(c.mealId, b);
+          }
+          setMeals(ms => ms.map(m => {
+            const b = mealBump.get(m.id);
+            if (!b) return m;
+            const newLast = (!m.lastEatenOn || b.lastDay > m.lastEatenOn) ? b.lastDay : m.lastEatenOn;
+            return { ...m, timesEaten: m.timesEaten + b.count, lastEatenOn: newLast, daysAgo: daysAgoFrom(newLast) };
+          }));
+          for (const [id, b] of mealBump) {
+            const base = mealsNorm.find(x => x.id === id);
+            if (!base) continue;
+            const newLast = (!base.lastEatenOn || b.lastDay > base.lastEatenOn) ? b.lastDay : base.lastEatenOn;
+            backend.updateMeal(id, { times_eaten: base.timesEaten + b.count, last_eaten_on: newLast }).catch(console.error);
+          }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -113,14 +126,22 @@ export function useStore() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  // recarga al volver a enfocar la ventana (sincroniza entre dispositivos)
+  // recarga al volver a enfocar la ventana (sincroniza entre dispositivos).
+  // `focus` y `visibilitychange` suelen dispararse juntos al regresar a la app; se
+  // coalescen con un debounce corto para hacer UNA sola recarga, no dos (B4).
+  const wakeTimer = useRef(null);
   useEffect(() => {
-    const onFocus = () => { if (document.visibilityState === 'visible') reload(); };
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onFocus);
+    const onWake = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(wakeTimer.current);
+      wakeTimer.current = setTimeout(() => reload(), 150);
+    };
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onWake);
     return () => {
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onFocus);
+      clearTimeout(wakeTimer.current);
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onWake);
     };
   }, [reload]);
 
@@ -129,7 +150,7 @@ export function useStore() {
 
   // plan de una semana (offset) como arreglo de 7 días
   const getPlan = useCallback((off) => {
-    return weekDates(off).map(date => plansByDay[dayKey(date)] || EMPTY_DAY);
+    return weekDates(off).map(date => plansByDay[dayKey(date)] || { ...EMPTY_DAY });
   }, [plansByDay]);
 
   // helpers internos de persistencia (optimista + backend)
@@ -153,7 +174,7 @@ export function useStore() {
   }, []);
 
   const dayKeyAt = (off, index) => dayKey(weekDates(off)[index]);
-  const entryAt = (off, index) => plansByDay[dayKeyAt(off, index)] || EMPTY_DAY;
+  const entryAt = (off, index) => plansByDay[dayKeyAt(off, index)] || { ...EMPTY_DAY };
 
   // ── Acciones: comidas ──────────────────────────────────────────────
   const toggleFav = useCallback((id) => {
@@ -163,15 +184,31 @@ export function useStore() {
   }, [meals, patchMeal]);
 
   const addMeal = useCallback(async ({ name, category, ingredients }) => {
-    const row = await backend.insertMeal({ name, category, ingredients });
-    setMeals(ms => [normMeal(row), ...ms]);
-    flash('Agregado a tu recetario');
+    try {
+      const row = await backend.insertMeal({ name, category, ingredients });
+      setMeals(ms => [normMeal(row), ...ms]);
+      flash('Agregado a tu recetario');
+    } catch (e) {
+      console.error(e);
+      flash('No se pudo guardar. Intenta de nuevo');
+    }
   }, [flash]);
 
   const updateMealFull = useCallback(async ({ id, name, category, ingredients }) => {
-    setMeals(ms => ms.map(m => m.id === id ? { ...m, name, category, ingredients } : m));
-    await backend.updateMeal(id, { name, category, ingredients }).catch(console.error);
-    flash('Cambios guardados');
+    let prev;
+    setMeals(ms => ms.map(m => {
+      if (m.id !== id) return m;
+      prev = m;
+      return { ...m, name, category, ingredients };
+    }));
+    try {
+      await backend.updateMeal(id, { name, category, ingredients });
+      flash('Cambios guardados');
+    } catch (e) {
+      console.error(e);
+      if (prev) setMeals(ms => ms.map(m => m.id === id ? prev : m)); // revierte
+      flash('No se pudo guardar. Revisa tu conexión');
+    }
   }, [flash]);
 
   const deleteMeal = useCallback((id) => {
@@ -193,33 +230,51 @@ export function useStore() {
   }, [complements]);
 
   const addComplement = useCallback(async ({ name, ingredients }) => {
-    const row = await backend.insertComplement({ name, ingredients });
-    setComplements(cs => [normComplement(row), ...cs]);
-    flash('Complemento agregado');
+    try {
+      const row = await backend.insertComplement({ name, ingredients });
+      setComplements(cs => [normComplement(row), ...cs]);
+      flash('Complemento agregado');
+    } catch (e) {
+      console.error(e);
+      flash('No se pudo guardar. Intenta de nuevo');
+    }
   }, [flash]);
 
   const updateComplementFull = useCallback(async ({ id, name, ingredients }) => {
-    setComplements(cs => cs.map(c => c.id === id ? { ...c, name, ingredients } : c));
-    await backend.updateComplement(id, { name, ingredients }).catch(console.error);
-    flash('Cambios guardados');
+    let prev;
+    setComplements(cs => cs.map(c => {
+      if (c.id !== id) return c;
+      prev = c;
+      return { ...c, name, ingredients };
+    }));
+    try {
+      await backend.updateComplement(id, { name, ingredients });
+      flash('Cambios guardados');
+    } catch (e) {
+      console.error(e);
+      if (prev) setComplements(cs => cs.map(c => c.id === id ? prev : c)); // revierte
+      flash('No se pudo guardar. Revisa tu conexión');
+    }
   }, [flash]);
 
   const deleteComplement = useCallback((id) => {
     setComplements(cs => cs.filter(c => c.id !== id));
-    // Limpia el id de los días que lo usaban (memoria + backend)
-    setPlansByDay(p => {
-      const n = { ...p };
-      for (const [day, v] of Object.entries(p)) {
-        if (v.complementIds && v.complementIds.includes(id)) {
-          const complementIds = v.complementIds.filter(x => x !== id);
-          n[day] = { ...v, complementIds };
-          backend.upsertPlan(day, { meal_id: v.mealId, eaten: v.eaten, complement_ids: complementIds, eaten_locked: v.eatenLocked }).catch(console.error);
-        }
+    // Limpia el id de los días que lo usaban (cálculo puro; los efectos van fuera del updater)
+    const next = { ...plansByDay };
+    const affected = [];
+    for (const [day, v] of Object.entries(plansByDay)) {
+      if (v.complementIds && v.complementIds.includes(id)) {
+        const complementIds = v.complementIds.filter(x => x !== id);
+        next[day] = { ...v, complementIds };
+        affected.push(next[day] && { day, entry: next[day] });
       }
-      return n;
-    });
+    }
+    setPlansByDay(next);
+    for (const a of affected) {
+      backend.upsertPlan(a.day, { meal_id: a.entry.mealId, eaten: a.entry.eaten, complement_ids: a.entry.complementIds, eaten_locked: a.entry.eatenLocked }).catch(console.error);
+    }
     backend.deleteComplement(id).catch(console.error);
-  }, []);
+  }, [plansByDay]);
 
   // ── Acciones: planeador ────────────────────────────────────────────
   const assignMeal = useCallback((off, index, mealId) => {
@@ -259,9 +314,19 @@ export function useStore() {
     const d = entryAt(off, index);
     if (!d.mealId) return;
     if (d.eaten) {
-      writeDay(dayKeyAt(off, index), { mealId: d.mealId, eaten: false, complementIds: d.complementIds, eatenLocked: true });
+      const iso = dayKeyAt(off, index);
+      writeDay(iso, { mealId: d.mealId, eaten: false, complementIds: d.complementIds, eatenLocked: true });
       const m = meals.find(x => x.id === d.mealId);
-      if (m) patchMeal(m.id, { timesEaten: Math.max(0, m.timesEaten - 1) }, { times_eaten: Math.max(0, m.timesEaten - 1) });
+      if (m) {
+        // Recalcula last_eaten_on: el día más reciente (≠ este) en que se comió esta comida.
+        let newLast = null;
+        for (const [day, v] of Object.entries(plansByDay)) {
+          if (day !== iso && v.mealId === m.id && v.eaten && (!newLast || day > newLast)) newLast = day;
+        }
+        patchMeal(m.id,
+          { timesEaten: Math.max(0, m.timesEaten - 1), lastEatenOn: newLast, daysAgo: daysAgoFrom(newLast) },
+          { times_eaten: Math.max(0, m.timesEaten - 1), last_eaten_on: newLast });
+      }
     } else {
       markEaten(off, index);
     }
@@ -280,27 +345,32 @@ export function useStore() {
 
   // ── Acciones: lista de compras ─────────────────────────────────────
   const toggleCheck = useCallback((name) => {
+    const on = !checked.has(name);
     setChecked(s => {
       const n = new Set(s);
-      const on = !n.has(name);
       on ? n.add(name) : n.delete(name);
-      backend.setChecked(name, on).catch(console.error);
       return n;
     });
-  }, []);
+    backend.setChecked(name, on).catch(console.error);
+  }, [checked]);
 
   const addManual = useCallback(async (text) => {
-    const row = await backend.addManual(text);
-    setManual(arr => [...arr, { id: row.id, text: row.text, done: false }]);
-  }, []);
+    try {
+      const row = await backend.addManual(text);
+      setManual(arr => [...arr, { id: row.id, text: row.text, done: false }]);
+    } catch (e) {
+      console.error(e);
+      flash('No se pudo agregar. Intenta de nuevo');
+    }
+  }, [flash]);
 
   const toggleManual = useCallback((id) => {
-    setManual(arr => arr.map(it => {
-      if (it.id !== id) return it;
-      backend.updateManual(id, { done: !it.done }).catch(console.error);
-      return { ...it, done: !it.done };
-    }));
-  }, []);
+    const it = manual.find(x => x.id === id);
+    if (!it) return;
+    const done = !it.done;
+    setManual(arr => arr.map(x => x.id === id ? { ...x, done } : x));
+    backend.updateManual(id, { done }).catch(console.error);
+  }, [manual]);
 
   const removeManual = useCallback((id) => {
     setManual(arr => arr.filter(it => it.id !== id));

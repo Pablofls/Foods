@@ -97,6 +97,16 @@ export function weekLabel(offset) {
   return `En ${offset} semanas`;
 }
 
+// ¿Debe auto-marcarse como comido este día? (día pasado, con comida, sin marcar y
+// sin que el usuario lo haya bloqueado a mano). `todayKey` y `day` son ISO YYYY-MM-DD.
+export function shouldAutoMark(day, entry, todayKey) {
+  return !!entry
+    && day < todayKey
+    && entry.mealId != null
+    && !entry.eaten
+    && !entry.eatenLocked;
+}
+
 // Elige una comida aleatoria evitando las recién comidas y un id excluido.
 // `meals` deben traer `daysAgo` ya calculado.
 export function pickRandom(meals, { exclude = [], avoidRecentDays = 6 } = {}) {

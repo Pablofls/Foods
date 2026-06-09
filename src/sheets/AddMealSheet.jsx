@@ -98,7 +98,7 @@ export function AddMealSheet({ open, onClose, onSave, presetName = '', editMeal 
                 style={inputStyle}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (i === ings.length - 1) addIng(); } }} />
               {ings.length > 1 && (
-                <button onClick={() => rmIng(i)} style={{ border: 'none', background: 'var(--cream-2)', borderRadius: 13, width: 46, flexShrink: 0, cursor: 'pointer', color: 'var(--ink-40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button onClick={() => rmIng(i)} aria-label="Quitar ingrediente" style={{ border: 'none', background: 'var(--cream-2)', borderRadius: 13, width: 46, flexShrink: 0, cursor: 'pointer', color: 'var(--ink-40)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="close" size={17} sw={2.2} />
                 </button>
               )}
