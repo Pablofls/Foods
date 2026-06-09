@@ -4,6 +4,10 @@ import { CatChip } from './primitives';
 
 export function MealRow({ meal, onClick, right, sub }) {
   // Fila clicable como div (no <button>) para poder anidar el botón de favorito.
+  // `meal.category` puede faltar (ej. complementos): usa un tono neutro.
+  const hasCat = !!meal.category;
+  const avatarBg = hasCat ? catColor(meal.category, 0.93, 0.045) : 'var(--cream-2)';
+  const avatarColor = hasCat ? catColor(meal.category, 0.45, 0.1) : 'var(--ink-60)';
   return (
     <div role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
@@ -18,16 +22,16 @@ export function MealRow({ meal, onClick, right, sub }) {
       onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
       onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
       <div style={{ width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-        background: catColor(meal.category, 0.93, 0.045),
+        background: avatarBg,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 600,
-        color: catColor(meal.category, 0.45, 0.1) }}>
+        color: avatarColor }}>
         {meal.name.charAt(0)}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{meal.name}</div>
         <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <CatChip cat={meal.category} size="sm" />
+          {hasCat && <CatChip cat={meal.category} size="sm" />}
           {sub && <span style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-40)', whiteSpace: 'nowrap' }}>{sub}</span>}
         </div>
       </div>

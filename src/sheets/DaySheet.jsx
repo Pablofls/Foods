@@ -4,7 +4,7 @@ import { isOrder, catColor } from '../lib/constants';
 import { Icon } from '../components/Icon';
 import { Sheet, Btn, CatChip, OrderNote } from '../components/primitives';
 
-export function DaySheet({ open, title, meal, eaten, onClose, onShuffle, onPick, onToggleEaten, onClear }) {
+export function DaySheet({ open, title, meal, eaten, dayComplements = [], onClose, onShuffle, onPick, onToggleEaten, onClear, onEditComplements }) {
   const [shuffled, setShuffled] = useState(false);
 
   useEffect(() => { if (!open) setShuffled(false); }, [open]);
@@ -39,6 +39,29 @@ export function DaySheet({ open, title, meal, eaten, onClose, onShuffle, onPick,
         </div>
       ) : (
         <p style={{ fontFamily: 'var(--sans)', color: 'var(--ink-60)', fontSize: 15, margin: '0 0 16px' }}>Aún no hay nada planeado para este día.</p>
+      )}
+
+      {/* Complementos del día */}
+      {meal && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--ink-40)' }}>Complementos</span>
+            <button onClick={onEditComplements} style={{ border: 'none', background: 'var(--blue-soft)', color: 'var(--blue-deep)', borderRadius: 999, padding: '6px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="plus" size={15} sw={2.4} stroke="var(--blue-deep)" /> {dayComplements.length > 0 ? 'Editar' : 'Agregar'}
+            </button>
+          </div>
+          {dayComplements.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {dayComplements.map(c => (
+                <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-70)', background: 'var(--cream-2)', borderRadius: 999, padding: '6px 12px' }}>
+                  <Icon name="bowl" size={14} sw={1.8} stroke="var(--ink-60)" /> {c.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-40)' }}>Sin complementos. Agrega arroz, ensalada, etc.</p>
+          )}
+        </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>

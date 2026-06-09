@@ -20,11 +20,27 @@ create table if not exists public.meals (
   created_at    timestamptz not null default now()
 );
 
-create table if not exists public.plan_entries (
-  day     date primary key,                  -- una fila por fecha planeada
-  meal_id bigint references public.meals(id) on delete set null,
-  eaten   boolean not null default false
+create table if not exists public.complements (
+  id          bigint generated always as identity primary key,
+  name        text    not null,
+  ingredients text[]  not null default '{}',
+  favorite    boolean not null default false,
+  created_at  timestamptz not null default now()
 );
+
+create table if not exists public.plan_entries (
+  day            date primary key,           -- una fila por fecha planeada
+  meal_id        bigint references public.meals(id) on delete set null,
+  eaten          boolean  not null default false,
+  complement_ids bigint[] not null default '{}',  -- varios complementos por día
+  eaten_locked   boolean  not null default false  -- true = el usuario decidió a mano
+);
+
+-- Si plan_entries ya existía sin estas columnas, agrégalas (no rompe datos):
+alter table public.plan_entries
+  add column if not exists complement_ids bigint[] not null default '{}';
+alter table public.plan_entries
+  add column if not exists eaten_locked boolean not null default false;
 
 create table if not exists public.manual_items (
   id   bigint generated always as identity primary key,
@@ -41,6 +57,7 @@ create table if not exists public.checked_ingredients (
 -- Acceso compartido sin login: el rol anónimo puede leer y escribir todo.
 
 alter table public.meals               enable row level security;
+alter table public.complements         enable row level security;
 alter table public.plan_entries        enable row level security;
 alter table public.manual_items        enable row level security;
 alter table public.checked_ingredients enable row level security;
@@ -48,7 +65,7 @@ alter table public.checked_ingredients enable row level security;
 do $$
 declare t text;
 begin
-  foreach t in array array['meals','plan_entries','manual_items','checked_ingredients']
+  foreach t in array array['meals','complements','plan_entries','manual_items','checked_ingredients']
   loop
     execute format('drop policy if exists "acceso compartido" on public.%I;', t);
     execute format(
@@ -87,6 +104,16 @@ select * from (values
 ) as seed
 where not exists (select 1 from public.meals);
 
+-- Complementos de ejemplo (solo si la tabla está vacía)
+insert into public.complements (name, ingredients, favorite)
+select * from (values
+  ('Arroz',               array['Arroz','Cebolla','Ajo'],                true),
+  ('Frijoles de la olla', array['Frijol','Cebolla','Epazote'],           false),
+  ('Ensalada verde',      array['Lechuga','Jitomate','Pepino','Limón'],  false),
+  ('Verduras al vapor',   array['Zanahoria','Calabaza','Chícharo'],      false)
+) as seed(name, ingredients, favorite)
+where not exists (select 1 from public.complements);
+
 -- ── (Opcional) Realtime: ver cambios en vivo entre dispositivos ───────
 -- Descomenta si quieres sincronización instantánea sin recargar:
--- alter publication supabase_realtime add table public.meals, public.plan_entries, public.manual_items, public.checked_ingredients;
+-- alter publication supabase_realtime add table public.meals, public.complements, public.plan_entries, public.manual_items, public.checked_ingredients;

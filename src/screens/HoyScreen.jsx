@@ -4,11 +4,12 @@ import { Icon } from '../components/Icon';
 import { CatChip, HeartBtn, Btn, OrderNote } from '../components/primitives';
 import { TalaveraBand } from '../components/MealRow';
 
-export function HoyScreen({ plan, mealById, onShuffle, onMarkEaten, onPickToday, onToggleFav, goTo }) {
+export function HoyScreen({ plan, mealById, complementById, onShuffle, onMarkEaten, onPickToday, onToggleFav, goTo }) {
   const TI = todayIndex();
   const T = today();
   const todayDay = plan[TI];
   const meal = todayDay.mealId ? mealById(todayDay.mealId) : null;
+  const dayComplements = (todayDay.complementIds || []).map(id => complementById(id)).filter(Boolean);
   const fecha = `${DAYS_FULL[TI]} ${T.getDate()} de ${MONTHS_FULL[T.getMonth()]}`;
 
   return (
@@ -44,6 +45,20 @@ export function HoyScreen({ plan, mealById, onShuffle, onMarkEaten, onPickToday,
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                     {meal.ingredients.map((ing, i) => (
                       <span key={i} style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-70)', background: 'var(--cream)', border: '1px solid var(--line-soft)', borderRadius: 999, padding: '5px 11px' }}>{ing}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Complementos del día */}
+              {dayComplements.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--ink-40)', marginBottom: 8 }}>Con</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {dayComplements.map(c => (
+                      <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-70)', background: 'var(--cream-2)', borderRadius: 999, padding: '5px 11px' }}>
+                        <Icon name="bowl" size={14} sw={1.8} stroke="var(--ink-60)" /> {c.name}
+                      </span>
                     ))}
                   </div>
                 </div>

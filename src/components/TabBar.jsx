@@ -6,6 +6,7 @@ export function TabBar({ active, onChange }) {
     { id: 'hoy', label: 'Hoy', icon: 'hoy' },
     { id: 'semana', label: 'Semana', icon: 'semana' },
     { id: 'comidas', label: 'Comidas', icon: 'comidas' },
+    { id: 'complementos', label: 'Extras', icon: 'bowl' },
     { id: 'lista', label: 'Lista', icon: 'lista' },
     { id: 'resumen', label: 'Resumen', icon: 'resumen' },
   ];

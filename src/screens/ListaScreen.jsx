@@ -4,20 +4,29 @@ import { isOrder } from '../lib/constants';
 import { Icon } from '../components/Icon';
 import { ScreenHeader, Checkbox } from '../components/primitives';
 
-export function ListaScreen({ plan, mealById, checked, onToggleCheck, manual, onAddManual, onToggleManual, onRemoveManual }) {
+export function ListaScreen({ plan, mealById, complementById, checked, onToggleCheck, manual, onAddManual, onToggleManual, onRemoveManual }) {
   const [txt, setTxt] = useState('');
 
-  // Ingredientes de comidas planeadas y aún no comidas
-  const map = new Map(); // nombre -> Set(meal names)
+  // Ingredientes de comidas y complementos planeados y aún no comidos
+  const map = new Map(); // nombre -> Set(origen: comida/complemento)
+  const addIngredients = (ingredients, origen) => {
+    ingredients.forEach(ing => {
+      if (!map.has(ing)) map.set(ing, new Set());
+      map.get(ing).add(origen);
+    });
+  };
   plan.forEach((d) => {
-    if (d.mealId && !d.eaten) {
+    if (d.eaten) return;
+    // Comida principal (los restaurantes no aportan ingredientes)
+    if (d.mealId) {
       const meal = mealById(d.mealId);
-      if (!meal || isOrder(meal)) return; // restaurantes no aportan a la lista de compras
-      meal.ingredients.forEach(ing => {
-        if (!map.has(ing)) map.set(ing, new Set());
-        map.get(ing).add(meal.name);
-      });
+      if (meal && !isOrder(meal)) addIngredients(meal.ingredients, meal.name);
     }
+    // Complementos del día
+    (d.complementIds || []).forEach(cid => {
+      const comp = complementById ? complementById(cid) : null;
+      if (comp) addIngredients(comp.ingredients, comp.name);
+    });
   });
   const items = [...map.entries()].map(([name, meals]) => ({ name, meals: [...meals] }));
   const totalAuto = items.length;

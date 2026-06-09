@@ -19,6 +19,7 @@ export function Icon({ name, size = 24, stroke = 'currentColor', sw = 1.8, fill 
     back: <path d="m14 6-6 6 6 6" {...p} />,
     trash: <path d="M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13" {...p} />,
     bag: <><path d="M5.5 8h13l-1 11.5a1.5 1.5 0 0 1-1.5 1.4H8a1.5 1.5 0 0 1-1.5-1.4L5.5 8Z" {...p} /><path d="M9 8a3 3 0 0 1 6 0" {...p} /></>,
+    bowl: <><path d="M3.5 11h17a8.5 8.5 0 0 1-8.5 7.5A8.5 8.5 0 0 1 3.5 11Z" {...p} /><path d="M8.5 11c0-2 1-3 1.7-3.7.6-.6.8-1.3.5-2.3M13 11c0-2 1-3 1.7-3.7.6-.6.8-1.3.5-2.3" {...p} /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block', flexShrink: 0 }}>

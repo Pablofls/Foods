@@ -9,19 +9,24 @@ import { Toast } from './components/Toast';
 import { HoyScreen } from './screens/HoyScreen';
 import { SemanaScreen } from './screens/SemanaScreen';
 import { ComidasScreen } from './screens/ComidasScreen';
+import { ComplementosScreen } from './screens/ComplementosScreen';
 import { ListaScreen } from './screens/ListaScreen';
 import { ResumenScreen } from './screens/ResumenScreen';
 import { MealPickerSheet } from './sheets/MealPickerSheet';
 import { AddMealSheet } from './sheets/AddMealSheet';
+import { AddComplementSheet } from './sheets/AddComplementSheet';
+import { ComplementPickerSheet } from './sheets/ComplementPickerSheet';
 import { DaySheet } from './sheets/DaySheet';
 import { MealDetailSheet } from './sheets/MealDetailSheet';
 
 export default function App() {
   const store = useStore();
   const {
-    loading, error, meals, manual, checked, toast, mealById, getPlan,
+    loading, error, meals, complements, manual, checked, toast, mealById, complementById, getPlan,
     toggleFav, addMeal, updateMealFull, deleteMeal, assignMeal, shuffleDay, markEaten,
-    toggleEaten, clearDay, planToday, toggleCheck, addManual, toggleManual, removeManual,
+    toggleEaten, clearDay, planToday, setDayComplements,
+    toggleComplementFav, addComplement, updateComplementFull, deleteComplement,
+    toggleCheck, addManual, toggleManual, removeManual,
   } = store;
 
   const [tab, setTab] = useState('hoy');
@@ -34,6 +39,9 @@ export default function App() {
   const [addPreset, setAddPreset] = useState('');
   const [detailMeal, setDetailMeal] = useState(null);  // id
   const [editMeal, setEditMeal] = useState(null);      // objeto comida a editar
+  const [addComplementOpen, setAddComplementOpen] = useState(false);
+  const [editComplement, setEditComplement] = useState(null);   // objeto complemento a editar
+  const [compPickerFor, setCompPickerFor] = useState(null);     // {off, index}
 
   const TI = todayIndex();
   const planNow = getPlan(0);
@@ -50,15 +58,23 @@ export default function App() {
     if (data.id) updateMealFull(data);
     else addMeal(data);
   };
+  const handleSaveComplement = (data) => {
+    if (data.id) updateComplementFull(data);
+    else addComplement(data);
+  };
 
   // datos del día abierto en la hoja
   const dayObj = dayOpen ? getPlan(dayOpen.off)[dayOpen.index] : null;
   const dayDate = dayOpen ? weekDates(dayOpen.off)[dayOpen.index] : null;
   const dayTitle = dayOpen ? `${DAYS_FULL[dayOpen.index]} ${dayDate.getDate()} de ${MONTHS_FULL[dayDate.getMonth()]}` : '';
+  const dayComplementObjs = dayObj ? (dayObj.complementIds || []).map(complementById).filter(Boolean) : [];
+
+  // datos del día abierto en el selector de complementos
+  const compDayObj = compPickerFor ? getPlan(compPickerFor.off)[compPickerFor.index] : null;
 
   let screen = null;
   if (tab === 'hoy') screen = (
-    <HoyScreen plan={planNow} mealById={mealById}
+    <HoyScreen plan={planNow} mealById={mealById} complementById={complementById}
       onShuffle={() => shuffleDay(0, TI)}
       onMarkEaten={() => markEaten(0, TI)}
       onPickToday={() => setPickerFor('today')}
@@ -73,8 +89,13 @@ export default function App() {
     <ComidasScreen meals={meals} onToggleFav={toggleFav} onOpenMeal={setDetailMeal}
       onAdd={() => { setAddPreset(''); setAddOpen(true); }} />
   );
+  else if (tab === 'complementos') screen = (
+    <ComplementosScreen complements={complements} onToggleFav={toggleComplementFav}
+      onOpen={(c) => setEditComplement(c)}
+      onAdd={() => { setEditComplement(null); setAddComplementOpen(true); }} />
+  );
   else if (tab === 'lista') screen = (
-    <ListaScreen plan={planNow} mealById={mealById} checked={checked} onToggleCheck={toggleCheck}
+    <ListaScreen plan={planNow} mealById={mealById} complementById={complementById} checked={checked} onToggleCheck={toggleCheck}
       manual={manual} onAddManual={addManual} onToggleManual={toggleManual} onRemoveManual={removeManual} />
   );
   else if (tab === 'resumen') screen = (
@@ -106,10 +127,12 @@ export default function App() {
       <DaySheet open={!!dayOpen} title={dayTitle}
         meal={dayObj && dayObj.mealId ? mealById(dayObj.mealId) : null}
         eaten={!!(dayObj && dayObj.eaten)}
+        dayComplements={dayComplementObjs}
         onClose={() => setDayOpen(null)}
         onShuffle={() => shuffleDay(dayOpen.off, dayOpen.index)}
         onPick={() => { const d = dayOpen; setDayOpen(null); setPickerFor({ off: d.off, index: d.index }); }}
         onToggleEaten={() => toggleEaten(dayOpen.off, dayOpen.index)}
+        onEditComplements={() => { const d = dayOpen; setDayOpen(null); setCompPickerFor({ off: d.off, index: d.index }); }}
         onClear={() => { clearDay(dayOpen.off, dayOpen.index); setDayOpen(null); }} />
       <AddMealSheet
         open={addOpen || !!editMeal}
@@ -120,6 +143,18 @@ export default function App() {
       <MealDetailSheet mealId={detailMeal} mealById={mealById} onClose={() => setDetailMeal(null)}
         onToggleFav={toggleFav} onDelete={deleteMeal} onPlanToday={planToday}
         onEdit={(meal) => { setDetailMeal(null); setEditMeal(meal); }} />
+      <AddComplementSheet
+        open={addComplementOpen || !!editComplement}
+        editComplement={editComplement}
+        onClose={() => { setAddComplementOpen(false); setEditComplement(null); }}
+        onSave={handleSaveComplement}
+        onDelete={deleteComplement} />
+      <ComplementPickerSheet
+        open={!!compPickerFor}
+        complements={complements}
+        selectedIds={compDayObj ? (compDayObj.complementIds || []) : []}
+        onClose={() => { const d = compPickerFor; setCompPickerFor(null); if (d) setDayOpen({ off: d.off, index: d.index }); }}
+        onConfirm={(ids) => { if (compPickerFor) setDayComplements(compPickerFor.off, compPickerFor.index, ids); }} />
 
       <Toast msg={toast} />
     </div>
